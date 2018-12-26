@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+    <gresource prefix="/com/sea/drcomclient">
+        <file preprocess="xml-stripblanks">main.glade</file>
+        <file preprocess="xml-stripblanks">app_menu.glade</file>
+        <file preprocess="xml-stripblanks">about.glade</file>
+        <file preprocess="xml-stripblanks">preferences.glade</file>
+        <file>main.css</file>
+    </gresource>
+</gresources>
