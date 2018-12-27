@@ -22,7 +22,7 @@ public:
 
   MacAddress(const MacAddress &);
 
-  const unsigned char *mac() const;
+  const byte *mac() const;
 
   const std::string &device_name() const;
 

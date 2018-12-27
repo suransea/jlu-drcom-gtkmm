@@ -1,23 +1,33 @@
 ### jlu drcom gtkmm
 
-unfinished.
-
 linux only
 
 #### make
 
-mkdir build
+`$ git clone https://github.com/suransea/jlu-drcom-gtkmm.git`
 
-cd build
+`$ cd jlu-drcom-gtkmm`
 
-cmake ..
+`$ mkdir build`
 
-make
+`$ cd build`
+
+`$ cmake ..`
+
+`$ make`
+
+`$ ./jlu-drcom`
 
 #### dependencies
 
-boost
+* boost
 
-gtkmm
+* gtkmm
 
-gtk
+* gtk
+
+####
+
+* 配置文件位置: ~/.config/drcom-client.conf
+
+* 日志位置: ~/drcomclient.log

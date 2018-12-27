@@ -47,9 +47,9 @@ protected:
 
   void alive();
 
-  void challenge(int times);
+  void challenge(int times, bool logout);
 
-  void on_recv_by_challenge(const boost::system::error_code &error, std::size_t len);
+  void on_recv_by_challenge(const boost::system::error_code &error, std::size_t len, bool logout);
 
   void on_recv_by_login(const boost::system::error_code &error, std::size_t len);
 
