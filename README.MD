@@ -26,7 +26,7 @@ linux only
 
 * gtk
 
-####
+#### others
 
 * 配置文件位置: ~/.config/drcom-client.conf
 
