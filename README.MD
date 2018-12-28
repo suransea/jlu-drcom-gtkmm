@@ -26,7 +26,7 @@ Linux only.
 
 * [rapidjson](https://github.com/Tencent/rapidjson): 解析配置文件
 
-* [gtkmm]([https://www.gtkmm.org/): UI框架
+* [gtkmm](https://www.gtkmm.org/): UI框架
 
 #### others
 
