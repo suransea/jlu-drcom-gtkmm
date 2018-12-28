@@ -5,7 +5,6 @@
 #include "drcom.h"
 
 #include <thread>
-#include <exception>
 
 #include <openssl/md5.h>
 #include <glibmm.h>
@@ -23,8 +22,8 @@ using boost::asio::ip::udp;
 namespace {
 
 byte *checksum(const byte *data, const size_t len) {
-  byte *sum = new byte[4];
-  byte *ret = new byte[4];
+  auto *sum = new byte[4];
+  auto *ret = new byte[4];
   sum[0] = 0x00;
   sum[1] = 0x00;
   sum[2] = 0x04;
@@ -38,7 +37,7 @@ byte *checksum(const byte *data, const size_t len) {
     i += 4;
   }
   if (i < len) {
-    byte *tmp = new byte[4]{0x00};
+    auto *tmp = new byte[4]{0x00};
     for (int j = 3; j >= 0 && i < len; --j) {
       tmp[j] = data[i++];
     }
@@ -58,7 +57,7 @@ byte *checksum(const byte *data, const size_t len) {
   num *= 1968;
   delete[] sum;
   for (int j = 0; j < 4; ++j) {
-    ret[j] = (byte) (num & 0xff);
+    ret[j] = (byte) (num & (byte) 0xff);
     num >>= 8;
   }
   return ret;
@@ -84,8 +83,8 @@ void Drcom::init_socket() {
 void Drcom::do_login(const std::string &user, const std::string &password) {
   init_socket();
   if (!socket_inited_) return;
-  this->user = user;
-  this->password = password;
+  user_ = user;
+  password_ = password;
   auto config = Singleton<Config>::instance();
   auto &&address = ip::address::from_string(config->server_ip());
   auto port = PORT;
@@ -141,7 +140,7 @@ void Drcom::login() {
 }
 
 void Drcom::alive() {
-  int rand = random_() % 0xffff;
+  unsigned rand = random_() % 0xffff;
   for (int i = 0; i < 3; i++) {
     byte *packet;
     size_t len = make_alive_packet(i, rand, packet);
@@ -183,7 +182,7 @@ void Drcom::challenge(const int times, bool logout) {
   delete[] packet;
 }
 
-size_t Drcom::make_alive_packet(const int type, const int rand, byte *&data) {
+size_t Drcom::make_alive_packet(const int type, const unsigned rand, byte *&data) {
   logger_->info("[alive{}] making packet", type);
   size_t data_len = 0;
   if (type == 0) {
@@ -193,7 +192,7 @@ size_t Drcom::make_alive_packet(const int type, const int rand, byte *&data) {
     memcpy(data + 1, md5a_, 16);
     memcpy(data + 20, tail_, 16);
     data[36] = (byte) (rand >> 8);
-    data[37] = (byte) (rand & 0xffffffff);
+    data[37] = (byte) (rand & 0xffffffffu);
   } else {
     data_len = 40;
     data = new byte[data_len]{0x00};
@@ -245,7 +244,7 @@ size_t Drcom::make_login_packet(byte *&data) {
   byte md5_src[128];
   size_t md5_len;
 
-  size_t passwd_len = password.length();
+  size_t passwd_len = password_.length();
   if (passwd_len > 16)passwd_len = 16;
   size_t data_len = 334 + (passwd_len - 1) / 4 * 4;
   data = new byte[data_len]{0x00};
@@ -254,14 +253,14 @@ size_t Drcom::make_login_packet(byte *&data) {
   data[0] = code;
   data[1] = type;
   data[2] = eof;
-  data[3] = (byte) (user.length() + 20);
+  data[3] = (byte) (user_.length() + 20);
 
   md5_len = 2 + salt_len + passwd_len;
   memset(md5_src, 0x00, md5_len);
   md5_src[0] = code;
   md5_src[1] = type;
   memcpy(md5_src + 2, salt_, salt_len);
-  memcpy(md5_src + 2 + salt_len, password.c_str(), passwd_len);
+  memcpy(md5_src + 2 + salt_len, password_.c_str(), passwd_len);
   MD5(md5_src, md5_len, md5_sum);
 
   //md5a
@@ -269,7 +268,7 @@ size_t Drcom::make_login_packet(byte *&data) {
   memcpy(data + 4, md5_sum, 16);
 
   //username
-  memcpy(data + 20, user.c_str(), user.length());
+  memcpy(data + 20, user_.c_str(), user_.length());
 
   data[56] = control_check;
   data[57] = adapter_num;
@@ -283,7 +282,7 @@ size_t Drcom::make_login_packet(byte *&data) {
   md5_len = 1 + passwd_len + salt_len + 4;
   memset(md5_src, 0x00, md5_len);
   md5_src[0] = 0x01;
-  memcpy(md5_src + 1, password.c_str(), passwd_len);
+  memcpy(md5_src + 1, password_.c_str(), passwd_len);
   memcpy(md5_src + 1 + passwd_len, salt_, salt_len);
   MD5(md5_src, md5_len, md5_sum);
 
@@ -331,9 +330,9 @@ size_t Drcom::make_login_packet(byte *&data) {
   memcpy(data + 246, "1c210c99585fd22ad03d35c956911aeec1eb449b", 40);
   data[310] = 0x6a;
   data[313] = (byte) passwd_len;
-  byte *ror = new byte[passwd_len]{0x00};
-  for (int i = 0, x; i < passwd_len; i++) {
-    x = (md5a_[i] & 0xff) ^ (((byte) password[i]) & 0xff);
+  auto *ror = new byte[passwd_len]{0x00};
+  for (int i = 0; i < passwd_len; i++) {
+    unsigned x = (md5a_[i] & (byte) 0xff) ^(((byte) password_[i]) & (byte) 0xff);
     ror[i] = (byte) ((x << 3) + (x >> 5));
   }
   memcpy(data + 314, ror, passwd_len);
@@ -350,7 +349,7 @@ size_t Drcom::make_login_packet(byte *&data) {
   data[321 + passwd_len] = 0x00;
   memcpy(data + 322 + passwd_len, mac.mac(), 4);
   size_t tmp_len = 326 + passwd_len;
-  byte *tmp = new byte[tmp_len]{0x00};
+  auto *tmp = new byte[tmp_len]{0x00};
   memcpy(tmp, data, tmp_len);
   byte *sum = checksum(tmp, tmp_len);
   delete[] tmp;
@@ -377,17 +376,17 @@ size_t Drcom::make_logout_packet(byte *&data) {
   data[0] = 0x06;
   data[1] = 0x01;
   data[2] = 0x00;
-  data[3] = (byte) (user.length() + 20);
-  size_t md5_len = 2 + 4 + password.length();
-  byte *md5_src = new byte[md5_len]{0x00};
+  data[3] = (byte) (user_.length() + 20);
+  size_t md5_len = 2 + 4 + password_.length();
+  auto *md5_src = new byte[md5_len]{0x00};
   memcpy(md5_src, data, 2);
   memcpy(md5_src + 2, salt_, 4);
-  memcpy(md5_src + 6, password.c_str(), password.length());
+  memcpy(md5_src + 6, password_.c_str(), password_.length());
   byte md5_sum[16]{0x00};
   MD5(md5_src, md5_len, md5_sum);
   delete[] md5_src;
   memcpy(data + 4, md5_sum, 16);
-  memcpy(data + 20, user.c_str(), user.length() > 36 ? 36 : user.length());
+  memcpy(data + 20, user_.c_str(), user_.length() > 36 ? 36 : user_.length());
   data[56] = 0x20;
   data[57] = 0x05;
   auto config = Singleton<Config>::instance();

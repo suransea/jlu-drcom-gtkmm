@@ -6,7 +6,6 @@
 
 #include "spdlog/sinks/basic_file_sink.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
-#include "spdlog/spdlog.h"
 #include "drcomclient/application.h"
 #include "resources.h" //glib-compile-resources --target=../include/resources.h --generate-source gresource.xml
 

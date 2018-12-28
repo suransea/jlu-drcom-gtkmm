@@ -6,11 +6,9 @@
 
 #include <fstream>
 #include <iostream>
-#include <streambuf>
 
 #include "rapidjson/document.h"
 #include "rapidjson/prettywriter.h"
-#include "rapidjson/stringbuffer.h"
 #include "../network/mac_address.h"
 
 namespace drcomclient {

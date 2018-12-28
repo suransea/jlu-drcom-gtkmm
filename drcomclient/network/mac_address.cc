@@ -4,11 +4,8 @@
 
 #include "mac_address.h"
 
-#include <cstdio>
 #include <cstring>
-#include <string>
 
-#include <unistd.h>
 #include <sys/ioctl.h>
 #include <net/if.h>
 
@@ -34,7 +31,7 @@ MacAddress::MacAddress(const char *device_name, const char *mac)
   this->mac_[3] = (byte) mac[3];
   this->mac_[4] = (byte) mac[4];
   this->mac_[5] = (byte) mac[5];
-  char *str = new char[32];
+  auto *str = new char[32];
   sprintf(str, "%02X:%02X:%02X:%02X:%02X:%02X", this->mac_[0], this->mac_[1], this->mac_[2],
           this->mac_[3], this->mac_[4], this->mac_[5]);
   mac_str_ = str;

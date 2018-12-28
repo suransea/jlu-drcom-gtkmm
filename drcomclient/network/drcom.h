@@ -7,7 +7,6 @@
 
 #include <string>
 #include <random>
-#include <thread>
 #include <memory>
 
 #include <boost/asio.hpp>
@@ -59,7 +58,7 @@ protected:
 
   size_t make_login_packet(byte *&data);
 
-  size_t make_alive_packet(int type, int rand, byte *&data);
+  size_t make_alive_packet(int type, unsigned rand, byte *&data);
 
   size_t make_challenge_packet(int times, byte *&data);
 
@@ -87,8 +86,8 @@ protected:
   byte salt_[4]{0x00};
   byte tail_[16]{0x00};
   byte flux_[4]{0x00};
-  std::string user;
-  std::string password;
+  std::string user_;
+  std::string password_;
 };
 
 } //namespace drcomclient
