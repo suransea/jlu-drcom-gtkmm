@@ -1,6 +1,6 @@
-### jlu drcom gtkmm
+## JLU Drcom Gtkmm
 
-linux only
+Linux only.
 
 #### make
 
@@ -20,11 +20,15 @@ linux only
 
 #### dependencies
 
-* boost
+* boost: 异步socket, 避免阻塞UI线程 [https://www.boost.org/]
 
-* gtkmm
+* spdlog: 记录日志 [https://github.com/gabime/spdlog]
 
-* gtk
+* rapidjson: 解析配置文件 [https://github.com/Tencent/rapidjson]
+
+* gtkmm: UI框架 [https://www.gtkmm.org/]
+
+* gtk+: gtkmm所需 [https://www.gtk.org/]
 
 #### others
 
