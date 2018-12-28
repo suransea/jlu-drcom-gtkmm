@@ -20,15 +20,13 @@ Linux only.
 
 #### dependencies
 
-* boost: 异步socket, 避免阻塞UI线程 [https://www.boost.org/]
+* [boost](https://www.boost.org/): 异步socket, 避免阻塞UI线程
 
-* spdlog: 记录日志 [https://github.com/gabime/spdlog]
+* [spdlog](https://github.com/gabime/spdlog): 记录日志
 
-* rapidjson: 解析配置文件 [https://github.com/Tencent/rapidjson]
+* [rapidjson](https://github.com/Tencent/rapidjson): 解析配置文件
 
-* gtkmm: UI框架 [https://www.gtkmm.org/]
-
-* gtk+: gtkmm所需 [https://www.gtk.org/]
+* [gtkmm]([https://www.gtkmm.org/): UI框架
 
 #### others
 
