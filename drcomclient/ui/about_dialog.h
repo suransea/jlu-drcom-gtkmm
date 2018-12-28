@@ -2,8 +2,8 @@
 // Created by sea on 12/23/18.
 //
 
-#ifndef JLU_DRCOM_ABOUTDIALOG_H
-#define JLU_DRCOM_ABOUTDIALOG_H
+#ifndef JLU_DRCOM_ABOUT_DIALOG_H
+#define JLU_DRCOM_ABOUT_DIALOG_H
 
 
 #include <gtkmm/aboutdialog.h>
@@ -21,4 +21,4 @@ public:
 
 } //namespace drcomclient
 
-#endif //JLU_DRCOM_ABOUTDIALOG_H
+#endif //JLU_DRCOM_ABOUT_DIALOG_H

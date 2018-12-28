@@ -2,8 +2,8 @@
 // Created by sea on 12/23/18.
 //
 
-#ifndef JLU_DRCOM_PREFERENCESDIALOG_H
-#define JLU_DRCOM_PREFERENCESDIALOG_H
+#ifndef JLU_DRCOM_PREFERENCES_DIALOG_H
+#define JLU_DRCOM_PREFERENCES_DIALOG_H
 
 #include <gtkmm/dialog.h>
 #include <gtkmm/checkbutton.h>
@@ -41,4 +41,4 @@ protected:
 
 } //namespace drcomclient
 
-#endif //JLU_DRCOM_PREFERENCESDIALOG_H
+#endif //JLU_DRCOM_PREFERENCES_DIALOG_H

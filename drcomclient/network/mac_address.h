@@ -2,8 +2,8 @@
 // Created by sea on 12/23/18.
 //
 
-#ifndef JLU_DRCOM_MACADDRESS_H
-#define JLU_DRCOM_MACADDRESS_H
+#ifndef JLU_DRCOM_MAC_ADDRESS_H
+#define JLU_DRCOM_MAC_ADDRESS_H
 
 #include <vector>
 
@@ -38,4 +38,4 @@ protected:
 
 } //namespace drcomclient
 
-#endif //JLU_DRCOM_MACADDRESS_H
+#endif //JLU_DRCOM_MAC_ADDRESS_H

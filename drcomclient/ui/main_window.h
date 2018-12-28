@@ -2,8 +2,8 @@
 // Created by sea on 12/22/18.
 //
 
-#ifndef JLU_DRCOM_MAINWINDOW_H
-#define JLU_DRCOM_MAINWINDOW_H
+#ifndef JLU_DRCOM_MAIN_WINDOW_H
+#define JLU_DRCOM_MAIN_WINDOW_H
 
 
 #include <gtkmm/window.h>
@@ -54,4 +54,4 @@ protected:
 
 } //namespace drcomclient
 
-#endif //JLU_DRCOM_MAINWINDOW_H
+#endif //JLU_DRCOM_MAIN_WINDOW_H

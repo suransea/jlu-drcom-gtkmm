@@ -21,9 +21,8 @@ using boost::asio::ip::udp;
 
 namespace {
 
-byte *checksum(const byte *data, const size_t len) {
-  auto *sum = new byte[4];
-  auto *ret = new byte[4];
+void checksum(const byte *data, const size_t len, byte *&out) {
+  auto sum = new byte[4];
   sum[0] = 0x00;
   sum[1] = 0x00;
   sum[2] = 0x04;
@@ -37,7 +36,7 @@ byte *checksum(const byte *data, const size_t len) {
     i += 4;
   }
   if (i < len) {
-    auto *tmp = new byte[4]{0x00};
+    auto tmp = new byte[4]{0x00};
     for (int j = 3; j >= 0 && i < len; --j) {
       tmp[j] = data[i++];
     }
@@ -57,10 +56,9 @@ byte *checksum(const byte *data, const size_t len) {
   num *= 1968;
   delete[] sum;
   for (int j = 0; j < 4; ++j) {
-    ret[j] = (byte) (num & (byte) 0xff);
+    out[j] = (byte) (num & (byte) 0xff);
     num >>= 8;
   }
-  return ret;
 }
 
 int challenge_times = -1;
@@ -330,7 +328,7 @@ size_t Drcom::make_login_packet(byte *&data) {
   memcpy(data + 246, "1c210c99585fd22ad03d35c956911aeec1eb449b", 40);
   data[310] = 0x6a;
   data[313] = (byte) passwd_len;
-  auto *ror = new byte[passwd_len]{0x00};
+  auto ror = new byte[passwd_len]{0x00};
   for (int i = 0; i < passwd_len; i++) {
     unsigned x = (md5a_[i] & (byte) 0xff) ^(((byte) password_[i]) & (byte) 0xff);
     ror[i] = (byte) ((x << 3) + (x >> 5));
@@ -349,9 +347,10 @@ size_t Drcom::make_login_packet(byte *&data) {
   data[321 + passwd_len] = 0x00;
   memcpy(data + 322 + passwd_len, mac.mac(), 4);
   size_t tmp_len = 326 + passwd_len;
-  auto *tmp = new byte[tmp_len]{0x00};
+  auto tmp = new byte[tmp_len]{0x00};
   memcpy(tmp, data, tmp_len);
-  byte *sum = checksum(tmp, tmp_len);
+  auto sum = new byte[4];
+  checksum(tmp, tmp_len, sum);
   delete[] tmp;
   memcpy(data + 316 + passwd_len, sum, 4);
   delete[] sum;
@@ -378,7 +377,7 @@ size_t Drcom::make_logout_packet(byte *&data) {
   data[2] = 0x00;
   data[3] = (byte) (user_.length() + 20);
   size_t md5_len = 2 + 4 + password_.length();
-  auto *md5_src = new byte[md5_len]{0x00};
+  auto md5_src = new byte[md5_len]{0x00};
   memcpy(md5_src, data, 2);
   memcpy(md5_src + 2, salt_, 4);
   memcpy(md5_src + 6, password_.c_str(), password_.length());
