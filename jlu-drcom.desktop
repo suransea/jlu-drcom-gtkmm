@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Drcom Client
+GenericName=Drcom client JLU
+Comment=A drcom client for Jilin University
+Exec=jlu-drcom
+Icon=jlu-drcom.png
+Terminal=false
+Type=Application
+Categories=Network;
