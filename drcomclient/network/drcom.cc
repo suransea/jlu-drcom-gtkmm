@@ -82,30 +82,7 @@ void Drcom::do_logout() {
     return;
   }
   challenge(true);
-  byte *packet;
-  std::size_t len = make_logout_packet(packet);
-  auto &&buf = buffer(packet, len);
-  restart_io_context(io_context_);
-  try {
-    socket_.send_to(buf, remote_endpoint_);
-    socket_.async_receive_from(
-        buffer(recv_buffer_), remote_endpoint_,
-        bind(&Drcom::on_recv_by_logout, this,
-             asio::placeholders::error,
-             asio::placeholders::bytes_transferred));
-    std::thread([&] { io_context_.run_one(); }).detach();
-    Glib::signal_timeout().connect_once([&] {
-      if (login_status_) {
-        cancel();
-        emit_signal_safely(signal_logout_, true, "[logout] Success");
-      }
-    }, 3000);
-  } catch (std::exception &ex) {
-    emit_signal_safely(signal_login_, false, ex.what());
-    logger_->error(ex.what());
-    cancel();
-  }
-  delete[] packet;
+  logout();
 }
 
 void Drcom::login() {
@@ -115,12 +92,29 @@ void Drcom::login() {
   restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
-    socket_.async_receive_from(
-        buffer(recv_buffer_), remote_endpoint_,
-        bind(&Drcom::on_recv_by_login, this,
-             asio::placeholders::error,
-             asio::placeholders::bytes_transferred));
-    std::thread([&] { io_context_.run_one(); }).detach();
+    auto &&handler = bind(&Drcom::on_recv_by_login, this,
+                          asio::placeholders::error,
+                          asio::placeholders::bytes_transferred);
+    async_recv(handler);
+  } catch (std::exception &ex) {
+    emit_signal_safely(signal_login_, false, ex.what());
+    logger_->error(ex.what());
+    cancel();
+  }
+  delete[] packet;
+}
+
+void Drcom::logout() {
+  byte *packet;
+  std::size_t len = make_logout_packet(packet);
+  auto &&buf = buffer(packet, len);
+  restart_io_context(io_context_);
+  try {
+    socket_.send_to(buf, remote_endpoint_);
+    auto &&handler = bind(&Drcom::on_recv_by_logout, this,
+                          asio::placeholders::error,
+                          asio::placeholders::bytes_transferred);
+    async_recv(handler);
   } catch (std::exception &ex) {
     emit_signal_safely(signal_login_, false, ex.what());
     logger_->error(ex.what());
@@ -141,12 +135,10 @@ void Drcom::alive(int type) {
   restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
-    socket_.async_receive_from(
-        buffer(recv_buffer_), remote_endpoint_,
-        bind(&Drcom::on_recv_by_alive, this,
-             asio::placeholders::error,
-             asio::placeholders::bytes_transferred, type));
-    std::thread([&] { io_context_.run_one(); }).detach();
+    auto &&handler = bind(&Drcom::on_recv_by_alive, this,
+                          asio::placeholders::error,
+                          asio::placeholders::bytes_transferred, type);
+    async_recv(handler);
   } catch (std::exception &ex) {
     emit_signal_safely(signal_login_, false, ex.what());
     logger_->error(ex.what());
@@ -162,12 +154,10 @@ void Drcom::challenge(bool logout) {
   restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
-    socket_.async_receive_from(
-        buffer(recv_buffer_), remote_endpoint_,
-        bind(&Drcom::on_recv_by_challenge, this,
-             asio::placeholders::error,
-             asio::placeholders::bytes_transferred, logout));
-    std::thread([&] { io_context_.run_one(); }).detach();
+    auto &&handler = bind(&Drcom::on_recv_by_challenge, this,
+                          asio::placeholders::error,
+                          asio::placeholders::bytes_transferred, logout);
+    async_recv(handler);
   } catch (std::exception &ex) {
     emit_signal_safely(signal_login_, false, ex.what());
     logger_->error(ex.what());
@@ -403,10 +393,11 @@ void Drcom::on_recv_by_challenge(const boost::system::error_code &error, std::si
   if (logout) return;
   if (error) {
     logger_->error(error.message());
-    emit_signal_safely(signal_login_, false, error.message());
+    emit_signal_safely(signal_login_, false, "[challenge] Operation cancel or timeout");
     cancel();
     return;
   }
+  time_out_.disconnect();
   logger_->debug("[recv] {}", bytes_to_string(recv_buffer_.data(), len));
   if (recv_buffer_[0] != 0x02) {
     std::string msg = "[challenge] Challenge failed, unrecognized response: ";
@@ -428,11 +419,12 @@ void Drcom::on_recv_by_challenge(const boost::system::error_code &error, std::si
 void Drcom::on_recv_by_login(const boost::system::error_code &error, std::size_t len) {
   if (error) {
     logger_->error(error.message());
-    emit_signal_safely(signal_login_, false, error.message());
+    emit_signal_safely(signal_login_, false, "[login] Operation cancel or timeout");
     cancel();
     return;
   }
   logger_->debug("[recv] {}", bytes_to_string(recv_buffer_.data(), len));
+  time_out_.disconnect();
   if (recv_buffer_[0] != 0x04) {
     if (recv_buffer_[0] == 0x05) {
       if (recv_buffer_[4] == 0x0B) {
@@ -463,20 +455,22 @@ void Drcom::on_recv_by_login(const boost::system::error_code &error, std::size_t
   keep38_count_ = -1;
   keep40_count_ = -1;
   alive(0);
-  Glib::signal_timeout().connect([&]() -> bool {
-    if (login_status_)alive(0);
-    return login_status_;
-  }, 20000);
 }
 
 void Drcom::on_recv_by_alive(const boost::system::error_code &error, std::size_t len, int type) {
   if (error) {
-    logger_->error(error.message());
-    emit_signal_safely(signal_abort_, false, error.message());
-    cancel();
+    if (++retry_times_ > 5) {
+      logger_->error(error.message());
+      emit_signal_safely(signal_abort_, false, "[alive] timeout");
+      cancel();
+    } else {
+      alive(0);
+    }
     return;
   }
   logger_->debug("[recv{}] {}", type, bytes_to_string(recv_buffer_.data(), len));
+  time_out_.disconnect();
+  retry_times_ = -1;
   if (recv_buffer_[0] != 0x07) {
     std::string msg = "[alive] Alive failed, unrecognized response: ";
     msg += std::to_string(recv_buffer_[0]);
@@ -487,9 +481,12 @@ void Drcom::on_recv_by_alive(const boost::system::error_code &error, std::size_t
   }
   if (type == 0) {
     memcpy(alive_ver, recv_buffer_.data() + 28, 2);
-  }
-  if (type == 2) {
+  } else if (type == 2) {
     memcpy(flux_, recv_buffer_.data() + 16, 4);
+  } else if (type == 3) {
+    Glib::signal_timeout().connect_once([&] {
+      if (login_status_) alive(0);
+    }, 20000);
   }
   alive(type + 1);
 }
@@ -497,11 +494,12 @@ void Drcom::on_recv_by_alive(const boost::system::error_code &error, std::size_t
 void Drcom::on_recv_by_logout(const boost::system::error_code &error, std::size_t len) {
   if (error) {
     logger_->error(error.message());
-    emit_signal_safely(signal_logout_, false, error.message());
+    emit_signal_safely(signal_logout_, true, "[logout] Success");
     cancel();
     return;
   }
   logger_->debug("[recv] {}", bytes_to_string(recv_buffer_.data(), len));
+  time_out_.disconnect();
   if (recv_buffer_[0] == 0x04) {
     emit_signal_safely(signal_logout_, true, "[logout] Success");
   } else {
@@ -512,6 +510,7 @@ void Drcom::on_recv_by_logout(const boost::system::error_code &error, std::size_
 
 void Drcom::cancel() {
   if (socket_.is_open()) socket_.close();
+  time_out_.disconnect();
   login_status_ = false;
 }
 
@@ -525,6 +524,16 @@ DrcomSignal &Drcom::signal_logout() {
 
 DrcomSignal &Drcom::signal_abort() {
   return signal_abort_;
+}
+
+template<typename Handler>
+void Drcom::async_recv(Handler &&handler) {
+  socket_.async_receive_from(buffer(recv_buffer_), remote_endpoint_, handler);
+  time_out_ = Glib::signal_timeout().connect([&]() -> bool {
+    socket_.cancel();
+    return false;
+  }, 1000);
+  std::thread([&] { io_context_.run_one(); }).detach();
 }
 
 

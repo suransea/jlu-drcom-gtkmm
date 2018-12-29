@@ -48,6 +48,8 @@ protected:
 
   void challenge(bool logout);
 
+  void logout();
+
   void on_recv_by_challenge(const boost::system::error_code &error, std::size_t len, bool logout);
 
   void on_recv_by_login(const boost::system::error_code &error, std::size_t len);
@@ -64,11 +66,15 @@ protected:
 
   std::size_t make_logout_packet(byte *&data);
 
+  template<typename Handler>
+  void async_recv(Handler &&handler);
+
   DrcomSignal signal_login_;
   DrcomSignal signal_logout_;
   DrcomSignal signal_abort_;
 
   bool login_status_ = false;
+  int retry_times_ = -1;
   int keep38_count_ = -1;
   int keep40_count_ = -1;
 
@@ -78,6 +84,7 @@ protected:
   boost::asio::ip::udp::socket socket_{io_context_};
   boost::asio::ip::udp::endpoint remote_endpoint_;
   boost::array<byte, 1024> recv_buffer_{0x00};
+  sigc::connection time_out_;
 
   byte host_ip_[4]{0x00};
   byte md5a_[16]{0x00};
