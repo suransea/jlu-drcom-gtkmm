@@ -69,6 +69,8 @@ protected:
   DrcomSignal signal_abort_;
 
   bool login_status_ = false;
+  int keep38_count_ = -1;
+  int keep40_count_ = -1;
 
   std::shared_ptr<spdlog::logger> logger_{spdlog::get("drcom")};
   std::random_device random_;

@@ -47,8 +47,6 @@ void restart_io_context(io_context &io) {
 
 int challenge_times = -1;
 
-int keep_count = -1;
-
 } //namespace
 
 bool Drcom::init_socket() {
@@ -132,9 +130,8 @@ void Drcom::login() {
 }
 
 void Drcom::alive(int type) {
-  io_context_.restart();
   if (type > 3) return;
-  if (type == 2 && keep_count % 21 != 0) {
+  if (type == 2 && keep38_count_ % 10 != 0) {
     alive(3);
     return;
   }
@@ -190,17 +187,17 @@ std::size_t Drcom::make_alive_packet(const int type, byte *&data) {
     memcpy(data + 20, tail_, 16);
     data[36] = (byte) (random_() % 255);
     data[37] = (byte) (random_() % 255);
+    ++keep38_count_;
   } else {
     data_len = 40;
     data = new byte[data_len]{0x00};
     data[0] = 0x07;
-    data[1] = (byte) ++keep_count;
+    data[1] = (byte) ++keep40_count_;
     data[2] = 0x28;
     data[4] = 0x0b;
     data[5] = 0x01;
     if (type == 3) data[5] = 0x03;
-    data[6] = alive_ver[0];
-    data[7] = alive_ver[1];
+    memcpy(data + 6, alive_ver, 2);
     if (type == 1) {
       data[6] = 0x0f;
       data[7] = 0x27;
@@ -463,8 +460,13 @@ void Drcom::on_recv_by_login(const boost::system::error_code &error, std::size_t
   std::string msg = "[login] Login successfully";
   logger_->info(msg);
   emit_signal_safely(signal_login_, true, msg);
-  keep_count = -1;
+  keep38_count_ = -1;
+  keep40_count_ = -1;
   alive(0);
+  Glib::signal_timeout().connect([&]() -> bool {
+    if (login_status_)alive(0);
+    return login_status_;
+  }, 20000);
 }
 
 void Drcom::on_recv_by_alive(const boost::system::error_code &error, std::size_t len, int type) {
@@ -484,14 +486,10 @@ void Drcom::on_recv_by_alive(const boost::system::error_code &error, std::size_t
     return;
   }
   if (type == 0) {
-    alive_ver[0] = recv_buffer_[28];
-    alive_ver[1] = recv_buffer_[29];
-  } else if (type == 2) {
+    memcpy(alive_ver, recv_buffer_.data() + 28, 2);
+  }
+  if (type == 2) {
     memcpy(flux_, recv_buffer_.data() + 16, 4);
-  } else if (type == 3) {
-    Glib::signal_timeout().connect_once([&] {
-      if (login_status_) alive(0);
-    }, 20000);
   }
   alive(type + 1);
 }
