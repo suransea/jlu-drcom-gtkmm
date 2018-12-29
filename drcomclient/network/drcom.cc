@@ -459,7 +459,7 @@ void Drcom::on_recv_by_login(const boost::system::error_code &error, std::size_t
 
 void Drcom::on_recv_by_alive(const boost::system::error_code &error, std::size_t len, int type) {
   if (error) {
-    if (++retry_times_ > 5) {
+    if (++retry_times_ > 10) {
       logger_->error(error.message());
       emit_signal_safely(signal_abort_, false, "[alive] timeout");
       cancel();
