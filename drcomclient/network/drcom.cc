@@ -51,31 +51,30 @@ int keep_count = -1;
 
 } //namespace
 
-void Drcom::init_socket() {
-  if (socket_inited_)return;
+bool Drcom::init_socket() {
   try {
     if (!socket_.is_open()) {
       socket_.open(udp::v4());
       socket_.bind(udp::endpoint(udp::v4(), PORT));
-      socket_inited_ = true;
     }
   } catch (std::exception &ex) {
     emit_signal_safely(signal_login_, false, ex.what());
     logger_->error(ex.what());
     if (socket_.is_open()) socket_.close();
+    return false;
   }
+  return true;
 }
 
 
 void Drcom::do_login(const std::string &user, const std::string &password) {
+  if (!init_socket()) return;
   user_ = user;
   password_ = password;
   auto config = Singleton<Config>::instance();
   auto &&address = ip::address::from_string(config->server_ip());
   auto port = PORT;
   remote_endpoint_ = ip::udp::endpoint(address, port);
-  init_socket();
-  if (!socket_inited_) return;
   challenge(false);
 }
 
@@ -515,7 +514,6 @@ void Drcom::on_recv_by_logout(const boost::system::error_code &error, std::size_
 
 void Drcom::cancel() {
   if (socket_.is_open()) socket_.close();
-  socket_inited_ = false;
   login_status_ = false;
 }
 

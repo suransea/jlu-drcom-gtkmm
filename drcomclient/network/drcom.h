@@ -40,7 +40,7 @@ public:
   DrcomSignal &signal_abort();
 
 protected:
-  void init_socket();
+  bool init_socket();
 
   void login();
 
@@ -69,7 +69,6 @@ protected:
   DrcomSignal signal_abort_;
 
   bool login_status_ = false;
-  bool socket_inited_ = false;
 
   std::shared_ptr<spdlog::logger> logger_{spdlog::get("drcom")};
   std::random_device random_;
