@@ -9,7 +9,7 @@
 
 namespace drcomclient {
 
-#define PORT (unsigned short)61440
+const unsigned short PORT = 61440;
 
 class Config {
 public:

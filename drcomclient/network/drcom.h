@@ -44,9 +44,9 @@ protected:
 
   void login();
 
-  void alive();
+  void alive(int type);
 
-  void challenge(int times, bool logout);
+  void challenge(bool logout);
 
   void on_recv_by_challenge(const boost::system::error_code &error, std::size_t len, bool logout);
 
@@ -56,20 +56,16 @@ protected:
 
   void on_recv_by_logout(const boost::system::error_code &error, std::size_t len);
 
-  size_t make_login_packet(byte *&data);
+  std::size_t make_login_packet(byte *&data);
 
-  size_t make_alive_packet(int type, unsigned rand, byte *&data);
+  std::size_t make_alive_packet(int type, byte *&data);
 
-  size_t make_challenge_packet(int times, byte *&data);
+  std::size_t make_challenge_packet(byte *&data);
 
-  size_t make_logout_packet(byte *&data);
-
-  void emit_signal_safely(const DrcomSignal &signal, bool, const std::string &);
+  std::size_t make_logout_packet(byte *&data);
 
   DrcomSignal signal_login_;
-
   DrcomSignal signal_logout_;
-
   DrcomSignal signal_abort_;
 
   bool login_status_ = false;
@@ -81,11 +77,14 @@ protected:
   boost::asio::ip::udp::socket socket_{io_context_};
   boost::asio::ip::udp::endpoint remote_endpoint_;
   boost::array<byte, 1024> recv_buffer_{0x00};
+
   byte host_ip_[4]{0x00};
   byte md5a_[16]{0x00};
   byte salt_[4]{0x00};
   byte tail_[16]{0x00};
   byte flux_[4]{0x00};
+  byte alive_ver[2]{0x00};
+
   std::string user_;
   std::string password_;
 };

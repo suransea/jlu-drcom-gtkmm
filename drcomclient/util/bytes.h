@@ -11,7 +11,9 @@ namespace drcomclient {
 
 typedef unsigned char byte;
 
-std::string bytes_to_string(byte *data, size_t len);
+std::string bytes_to_string(byte *data, std::size_t len);
+
+void checksum(const byte *data, std::size_t len, byte *out);
 
 } //namespace drcomclient
 

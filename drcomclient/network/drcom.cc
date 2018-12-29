@@ -21,80 +21,74 @@ using boost::asio::ip::udp;
 
 namespace {
 
-void checksum(const byte *data, const size_t len, byte *&out) {
-  auto sum = new byte[4];
-  sum[0] = 0x00;
-  sum[1] = 0x00;
-  sum[2] = 0x04;
-  sum[3] = (byte) 0xd2;
-  int i = 0;
-  while (i + 3 < len) {
-    sum[0] ^= data[i + 3];
-    sum[1] ^= data[i + 2];
-    sum[2] ^= data[i + 1];
-    sum[3] ^= data[i];
-    i += 4;
-  }
-  if (i < len) {
-    auto tmp = new byte[4]{0x00};
-    for (int j = 3; j >= 0 && i < len; --j) {
-      tmp[j] = data[i++];
-    }
-    for (int j = 0; j < 4; j++) {
-      sum[j] ^= tmp[j];
-    }
-    delete[] tmp;
-  }
-  unsigned long num = 0;
-  num |= sum[0];
-  num <<= 8;
-  num |= sum[1];
-  num <<= 8;
-  num |= sum[2];
-  num <<= 8;
-  num |= sum[3];
-  num *= 1968;
-  delete[] sum;
-  for (int j = 0; j < 4; ++j) {
-    out[j] = (byte) (num & (byte) 0xff);
-    num >>= 8;
+/**
+ * 数据报的接收不在主线程中，不能安全触发含有更新UI操作的信号槽
+ * 此方法将信号发送置于主线程的任务中
+ * @param signal
+ * @param bool
+ * @param string
+ */
+void emit_signal_safely(const DrcomSignal &signal, bool b, const std::string &s) {
+  Glib::signal_idle().connect_once([=] {
+    signal.emit(b, s);
+  });
+}
+
+/**
+ * 由于IO任务是动态添加的，无法确定IO停止的时间
+ * 每次添加io操作时调用此方法试图重启io context
+ * @param io context
+ */
+void restart_io_context(io_context &io) {
+  if (io.stopped()) {
+    io.restart();
   }
 }
 
 int challenge_times = -1;
+
+int keep_count = -1;
 
 } //namespace
 
 void Drcom::init_socket() {
   if (socket_inited_)return;
   try {
-    if (!socket_.is_open())socket_.open(udp::v4());
-    socket_.bind(udp::endpoint(udp::v4(), PORT));
-    socket_inited_ = true;
+    if (!socket_.is_open()) {
+      socket_.open(udp::v4());
+      socket_.bind(udp::endpoint(udp::v4(), PORT));
+      socket_inited_ = true;
+    }
   } catch (std::exception &ex) {
     emit_signal_safely(signal_login_, false, ex.what());
     logger_->error(ex.what());
+    if (socket_.is_open()) socket_.close();
   }
 }
 
 
 void Drcom::do_login(const std::string &user, const std::string &password) {
-  init_socket();
-  if (!socket_inited_) return;
   user_ = user;
   password_ = password;
   auto config = Singleton<Config>::instance();
   auto &&address = ip::address::from_string(config->server_ip());
   auto port = PORT;
   remote_endpoint_ = ip::udp::endpoint(address, port);
-  challenge(++challenge_times, false);
+  init_socket();
+  if (!socket_inited_) return;
+  challenge(false);
 }
 
 void Drcom::do_logout() {
-  challenge(++challenge_times, true);
+  if (!login_status_) {
+    emit_signal_safely(signal_logout_, true, "[logout] Success");
+    return;
+  }
+  challenge(true);
   byte *packet;
-  size_t len = make_logout_packet(packet);
+  std::size_t len = make_logout_packet(packet);
   auto &&buf = buffer(packet, len);
+  restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
     socket_.async_receive_from(
@@ -102,11 +96,11 @@ void Drcom::do_logout() {
         bind(&Drcom::on_recv_by_logout, this,
              asio::placeholders::error,
              asio::placeholders::bytes_transferred));
-    std::thread([&] { io_context_.run(); }).detach();
+    std::thread([&] { io_context_.run_one(); }).detach();
     Glib::signal_timeout().connect_once([&] {
       if (login_status_) {
         cancel();
-        emit_signal_safely(signal_logout_, true, "Success");
+        emit_signal_safely(signal_logout_, true, "[logout] Success");
       }
     }, 3000);
   } catch (std::exception &ex) {
@@ -119,8 +113,9 @@ void Drcom::do_logout() {
 
 void Drcom::login() {
   byte *packet;
-  size_t len = make_login_packet(packet);
+  std::size_t len = make_login_packet(packet);
   auto &&buf = buffer(packet, len);
+  restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
     socket_.async_receive_from(
@@ -128,7 +123,7 @@ void Drcom::login() {
         bind(&Drcom::on_recv_by_login, this,
              asio::placeholders::error,
              asio::placeholders::bytes_transferred));
-    std::thread([&] { io_context_.run(); }).detach();
+    std::thread([&] { io_context_.run_one(); }).detach();
   } catch (std::exception &ex) {
     emit_signal_safely(signal_login_, false, ex.what());
     logger_->error(ex.what());
@@ -137,33 +132,38 @@ void Drcom::login() {
   delete[] packet;
 }
 
-void Drcom::alive() {
-  unsigned rand = random_() % 0xffff;
-  for (int i = 0; i < 3; i++) {
-    byte *packet;
-    size_t len = make_alive_packet(i, rand, packet);
-    auto &&buf = buffer(packet, len);
-    try {
-      socket_.send_to(buf, remote_endpoint_);
-      socket_.async_receive_from(
-          buffer(recv_buffer_), remote_endpoint_,
-          bind(&Drcom::on_recv_by_alive, this,
-               asio::placeholders::error,
-               asio::placeholders::bytes_transferred, i));
-      std::thread([&] { io_context_.run(); }).detach();
-    } catch (std::exception &ex) {
-      emit_signal_safely(signal_login_, false, ex.what());
-      logger_->error(ex.what());
-      cancel();
-    }
-    delete[] packet;
+void Drcom::alive(int type) {
+  io_context_.restart();
+  if (type > 3) return;
+  if (type == 2 && keep_count % 21 != 0) {
+    alive(3);
+    return;
   }
+  byte *packet;
+  std::size_t len = make_alive_packet(type, packet);
+  auto &&buf = buffer(packet, len);
+  restart_io_context(io_context_);
+  try {
+    socket_.send_to(buf, remote_endpoint_);
+    socket_.async_receive_from(
+        buffer(recv_buffer_), remote_endpoint_,
+        bind(&Drcom::on_recv_by_alive, this,
+             asio::placeholders::error,
+             asio::placeholders::bytes_transferred, type));
+    std::thread([&] { io_context_.run_one(); }).detach();
+  } catch (std::exception &ex) {
+    emit_signal_safely(signal_login_, false, ex.what());
+    logger_->error(ex.what());
+    cancel();
+  }
+  delete[] packet;
 }
 
-void Drcom::challenge(const int times, bool logout) {
+void Drcom::challenge(bool logout) {
   byte *packet;
-  size_t len = make_challenge_packet(times, packet);
+  std::size_t len = make_challenge_packet(packet);
   auto &&buf = buffer(packet, len);
+  restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
     socket_.async_receive_from(
@@ -171,7 +171,7 @@ void Drcom::challenge(const int times, bool logout) {
         bind(&Drcom::on_recv_by_challenge, this,
              asio::placeholders::error,
              asio::placeholders::bytes_transferred, logout));
-    std::thread([&] { io_context_.run(); }).detach();
+    std::thread([&] { io_context_.run_one(); }).detach();
   } catch (std::exception &ex) {
     emit_signal_safely(signal_login_, false, ex.what());
     logger_->error(ex.what());
@@ -180,31 +180,36 @@ void Drcom::challenge(const int times, bool logout) {
   delete[] packet;
 }
 
-size_t Drcom::make_alive_packet(const int type, const unsigned rand, byte *&data) {
+std::size_t Drcom::make_alive_packet(const int type, byte *&data) {
   logger_->info("[alive{}] making packet", type);
-  size_t data_len = 0;
+  std::size_t data_len = 0;
   if (type == 0) {
     data_len = 38;
     data = new byte[data_len]{0x00};
-    data[0] = 0xff;
+    data[0] = (byte) 0xff;
     memcpy(data + 1, md5a_, 16);
     memcpy(data + 20, tail_, 16);
-    data[36] = (byte) (rand >> 8);
-    data[37] = (byte) (rand & 0xffffffffu);
+    data[36] = (byte) (random_() % 255);
+    data[37] = (byte) (random_() % 255);
   } else {
     data_len = 40;
     data = new byte[data_len]{0x00};
     data[0] = 0x07;
-    data[1] = 0x00;
+    data[1] = (byte) ++keep_count;
     data[2] = 0x28;
     data[4] = 0x0b;
-    data[5] = (byte) (2 * type - 1);
-    data[6] = 0xdc;
-    data[7] = 0x02;
-    data[9] = (byte) (rand >> 8);
-    data[10] = (byte) rand;
+    data[5] = 0x01;
+    if (type == 3) data[5] = 0x03;
+    data[6] = alive_ver[0];
+    data[7] = alive_ver[1];
+    if (type == 1) {
+      data[6] = 0x0f;
+      data[7] = 0x27;
+    }
+    data[8] = 0x2f;
+    data[9] = 0x12;
     memcpy(data + 16, flux_, 4);
-    if (type == 2) {
+    if (type == 3) {
       memcpy(data + 28, host_ip_, 4);
     }
   }
@@ -212,12 +217,12 @@ size_t Drcom::make_alive_packet(const int type, const unsigned rand, byte *&data
   return data_len;
 }
 
-size_t Drcom::make_challenge_packet(const int times, byte *&data) {
+std::size_t Drcom::make_challenge_packet(byte *&data) {
   logger_->info("[challenge] making packet");
-  size_t data_len = 20;
+  std::size_t data_len = 20;
   data = new byte[data_len]{0x00};
   data[0] = 0x01;
-  data[1] = (byte) (0x02 + times);
+  data[1] = (byte) (0x02 + (++challenge_times));
   data[2] = (byte) (random_() % 255);
   data[3] = (byte) (random_() % 255);
   data[4] = 0x6a;
@@ -225,7 +230,7 @@ size_t Drcom::make_challenge_packet(const int times, byte *&data) {
   return data_len;
 }
 
-size_t Drcom::make_login_packet(byte *&data) {
+std::size_t Drcom::make_login_packet(byte *&data) {
   logger_->info("[login] making package");
   auto config = Singleton<Config>::instance();
   MacAddress mac(config->mac_address());
@@ -235,16 +240,16 @@ size_t Drcom::make_login_packet(byte *&data) {
   byte control_check = 0x20;
   byte adapter_num = 0x05;
   byte ip_dog = 0x01;
-  size_t salt_len = 4;
+  std::size_t salt_len = 4;
   byte primary_dns[4]{10};
   byte dhcp[4]{0x00};
   byte md5_sum[16]{0x00};
   byte md5_src[128];
-  size_t md5_len;
+  std::size_t md5_len;
 
-  size_t passwd_len = password_.length();
+  std::size_t passwd_len = password_.length();
   if (passwd_len > 16)passwd_len = 16;
-  size_t data_len = 334 + (passwd_len - 1) / 4 * 4;
+  std::size_t data_len = 334 + (passwd_len - 1) / 4 * 4;
   data = new byte[data_len]{0x00};
 
   //begin
@@ -346,7 +351,7 @@ size_t Drcom::make_login_packet(byte *&data) {
   data[320 + passwd_len] = 0x00;
   data[321 + passwd_len] = 0x00;
   memcpy(data + 322 + passwd_len, mac.mac(), 4);
-  size_t tmp_len = 326 + passwd_len;
+  std::size_t tmp_len = 326 + passwd_len;
   auto tmp = new byte[tmp_len]{0x00};
   memcpy(tmp, data, tmp_len);
   auto sum = new byte[4];
@@ -359,7 +364,7 @@ size_t Drcom::make_login_packet(byte *&data) {
   data[321 + passwd_len] = 0x00;
 
   memcpy(data + 322 + passwd_len, mac.mac(), 6);
-  size_t zero = (4 - passwd_len % 4) % 4;
+  std::size_t zero = (4 - passwd_len % 4) % 4;
 
   data[328 + passwd_len + zero] = (byte) (random_() % 255);
   data[329 + passwd_len + zero] = (byte) (random_() % 255);
@@ -368,15 +373,15 @@ size_t Drcom::make_login_packet(byte *&data) {
   return data_len;
 }
 
-size_t Drcom::make_logout_packet(byte *&data) {
+std::size_t Drcom::make_logout_packet(byte *&data) {
   logger_->info("[logout] making logout packet");
-  size_t data_len = 80;
+  std::size_t data_len = 80;
   data = new byte[data_len]{0x00};
   data[0] = 0x06;
   data[1] = 0x01;
   data[2] = 0x00;
   data[3] = (byte) (user_.length() + 20);
-  size_t md5_len = 2 + 4 + password_.length();
+  std::size_t md5_len = 2 + 4 + password_.length();
   auto md5_src = new byte[md5_len]{0x00};
   memcpy(md5_src, data, 2);
   memcpy(md5_src + 2, salt_, 4);
@@ -435,19 +440,19 @@ void Drcom::on_recv_by_login(const boost::system::error_code &error, std::size_t
   if (recv_buffer_[0] != 0x04) {
     if (recv_buffer_[0] == 0x05) {
       if (recv_buffer_[4] == 0x0B) {
-        std::string msg = "Invalid mac address";
+        std::string msg = "[login] Invalid mac address";
         logger_->error(msg);
         emit_signal_safely(signal_login_, false, msg);
         cancel();
         return;
       }
-      std::string msg = "Invalid username or password";
+      std::string msg = "[login] Invalid username or password";
       logger_->error(msg);
       emit_signal_safely(signal_login_, false, msg);
       cancel();
       return;
     } else {
-      std::string msg = "Unknown error";
+      std::string msg = "[login] Unknown error";
       logger_->error(msg);
       emit_signal_safely(signal_login_, false, msg);
       cancel();
@@ -456,14 +461,11 @@ void Drcom::on_recv_by_login(const boost::system::error_code &error, std::size_t
   }
   memcpy(tail_, recv_buffer_.data() + 23, 16);
   login_status_ = true;
-  std::string msg = "Login successfully";
+  std::string msg = "[login] Login successfully";
   logger_->info(msg);
   emit_signal_safely(signal_login_, true, msg);
-  alive();
-  Glib::signal_timeout().connect([&]() -> bool {
-    if (login_status_)alive();
-    return login_status_;
-  }, 20000);
+  keep_count = -1;
+  alive(0);
 }
 
 void Drcom::on_recv_by_alive(const boost::system::error_code &error, std::size_t len, int type) {
@@ -482,9 +484,17 @@ void Drcom::on_recv_by_alive(const boost::system::error_code &error, std::size_t
     cancel();
     return;
   }
-  if (type > 0) {
+  if (type == 0) {
+    alive_ver[0] = recv_buffer_[28];
+    alive_ver[1] = recv_buffer_[29];
+  } else if (type == 2) {
     memcpy(flux_, recv_buffer_.data() + 16, 4);
+  } else if (type == 3) {
+    Glib::signal_timeout().connect_once([&] {
+      if (login_status_) alive(0);
+    }, 20000);
   }
+  alive(type + 1);
 }
 
 void Drcom::on_recv_by_logout(const boost::system::error_code &error, std::size_t len) {
@@ -496,16 +506,15 @@ void Drcom::on_recv_by_logout(const boost::system::error_code &error, std::size_
   }
   logger_->debug("[recv] {}", bytes_to_string(recv_buffer_.data(), len));
   if (recv_buffer_[0] == 0x04) {
-    emit_signal_safely(signal_logout_, true, "Success");
+    emit_signal_safely(signal_logout_, true, "[logout] Success");
   } else {
-    emit_signal_safely(signal_logout_, false, "Cannot logout right now, but alive has been stopped");
+    emit_signal_safely(signal_logout_, false, "[logout] Cannot logout right now, but alive has been stopped");
   }
   cancel();
 }
 
 void Drcom::cancel() {
   if (socket_.is_open()) socket_.close();
-  io_context_.stop();
   socket_inited_ = false;
   login_status_ = false;
 }
@@ -520,12 +529,6 @@ DrcomSignal &Drcom::signal_logout() {
 
 DrcomSignal &Drcom::signal_abort() {
   return signal_abort_;
-}
-
-void Drcom::emit_signal_safely(const DrcomSignal &signal, bool b, const std::string &s) {
-  Glib::signal_idle().connect_once([=] {
-    signal.emit(b, s);
-  });
 }
 
 
