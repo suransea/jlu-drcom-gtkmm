@@ -511,6 +511,7 @@ void Drcom::on_recv_by_logout(const boost::system::error_code &error, std::size_
 void Drcom::cancel() {
   if (socket_.is_open()) socket_.close();
   time_out_.disconnect();
+  io_context_.stop();
   login_status_ = false;
 }
 
@@ -530,7 +531,7 @@ template<typename Handler>
 void Drcom::async_recv(Handler &&handler) {
   socket_.async_receive_from(buffer(recv_buffer_), remote_endpoint_, handler);
   time_out_ = Glib::signal_timeout().connect([&]() -> bool {
-    socket_.cancel();
+    if (socket_.is_open()) socket_.cancel();
     return false;
   }, 1000);
   std::thread([&] { io_context_.run_one(); }).detach();
