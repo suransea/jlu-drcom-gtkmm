@@ -89,7 +89,6 @@ void Drcom::login() {
   byte *packet;
   std::size_t len = make_login_packet(packet);
   auto &&buf = buffer(packet, len);
-  restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
     auto &&handler = bind(&Drcom::on_recv_by_login, this,
@@ -108,7 +107,6 @@ void Drcom::logout() {
   byte *packet;
   std::size_t len = make_logout_packet(packet);
   auto &&buf = buffer(packet, len);
-  restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
     auto &&handler = bind(&Drcom::on_recv_by_logout, this,
@@ -132,7 +130,6 @@ void Drcom::alive(int type) {
   byte *packet;
   std::size_t len = make_alive_packet(type, packet);
   auto &&buf = buffer(packet, len);
-  restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
     auto &&handler = bind(&Drcom::on_recv_by_alive, this,
@@ -151,7 +148,6 @@ void Drcom::challenge(bool logout) {
   byte *packet;
   std::size_t len = make_challenge_packet(packet);
   auto &&buf = buffer(packet, len);
-  restart_io_context(io_context_);
   try {
     socket_.send_to(buf, remote_endpoint_);
     auto &&handler = bind(&Drcom::on_recv_by_challenge, this,
@@ -529,6 +525,7 @@ DrcomSignal &Drcom::signal_abort() {
 
 template<typename Handler>
 void Drcom::async_recv(Handler &&handler) {
+  restart_io_context(io_context_);
   socket_.async_receive_from(buffer(recv_buffer_), remote_endpoint_, handler);
   time_out_ = Glib::signal_timeout().connect([&]() -> bool {
     if (socket_.is_open()) socket_.cancel();
