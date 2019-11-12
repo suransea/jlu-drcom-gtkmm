@@ -20,16 +20,16 @@ Linux only.
 
 #### dependencies
 
-* [boost](https://www.boost.org/): 异步socket, 避免阻塞UI线程
+* [boost](https://www.boost.org/)
 
-* [spdlog](https://github.com/gabime/spdlog): 记录日志
+* [spdlog](https://github.com/gabime/spdlog) (embedded)
 
-* [rapidjson](https://github.com/Tencent/rapidjson): 解析配置文件
+* [rapidjson](https://github.com/Tencent/rapidjson) (embedded)
 
-* [gtkmm](https://www.gtkmm.org/): UI框架
+* [gtkmm](https://www.gtkmm.org/)
 
 #### others
 
-* 配置文件位置: ~/.config/drcom-client.conf
+* path to config: ~/.config/drcom-client.conf
 
-* 日志位置: ~/drcomclient.log
+* path to log: ~/drcomclient.log
