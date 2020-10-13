@@ -9,13 +9,16 @@
 
 #include "ui/main_window.h"
 
-namespace drcomclient {
+namespace DrcomClient {
 
 class Application : public Gtk::Application {
 public:
-  Application();
+  static Glib::RefPtr<Application> create();
 
   Application(const Application &) = delete;
+
+protected:
+  Application();
 
 protected:
   void on_startup() override;
@@ -29,6 +32,6 @@ protected:
   void on_about_menu_acted();
 };
 
-} //namespace drcomclient
+} // namespace DrcomClient
 
-#endif //JLU_DRCOM_APPLICATION_H
+#endif // JLU_DRCOM_APPLICATION_H

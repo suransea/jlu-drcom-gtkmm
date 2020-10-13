@@ -3,26 +3,35 @@ project(jlu-drcom)
 
 set(CMAKE_CXX_STANDARD 11)
 
-find_package(PkgConfig)
-find_package(Boost)
+find_package(PkgConfig REQUIRED)
+find_package(Boost REQUIRED)
+find_package(spdlog REQUIRED)
+find_package(nlohmann_json REQUIRED)
 pkg_check_modules(GTKMM gtkmm-3.0)
-link_directories(${GTKMM_LIBRARY_DIRS})
+pkg_check_modules(OpenSSL openssl)
+
+link_directories(
+        ${GTKMM_LIBRARY_DIRS}
+        ${OpenSSL_LIBRARY_DIRS}
+)
+
 include_directories(
+        ${Boost_INCLUDE_DIRS}
         ${GTKMM_INCLUDE_DIRS}
-        ${BOOST_INCLUDE_DIRS}
-        include
+        ${OpenSSL_INCLUDE_DIRS}
+        .
 )
 
 add_subdirectory(drcomclient)
-aux_source_directory(. DIRSRCS)
+aux_source_directory(. SRCS)
+add_executable(${PROJECT_NAME} ${SRCS})
 
-add_executable(${PROJECT_NAME} ${DIRSRCS})
 target_link_libraries(
-        ${PROJECT_NAME}
+        ${PROJECT_NAME} PRIVATE
         ${GTKMM_LIBRARIES}
-        ${BOOST_LIBRARIES}
-        boost_system
-        pthread
-        crypto
+        ${OpenSSL_LIBRARIES}
+        Boost::boost
+        spdlog::spdlog_header_only
+        nlohmann_json::nlohmann_json
         drcomclient
 )

@@ -5,13 +5,12 @@
 #ifndef JLU_DRCOM_SINGLETON_H
 #define JLU_DRCOM_SINGLETON_H
 
-#include <utility>
 #include <memory>
+#include <utility>
 
-namespace drcomclient {
+namespace DrcomClient {
 
-template<typename T>
-class Singleton {
+template <typename T> class Singleton {
 public:
   Singleton() = delete;
 
@@ -19,8 +18,7 @@ public:
 
   Singleton &operator=(const Singleton &) = delete;
 
-
-  template<typename... Args>
+  template <typename... Args>
   static std::shared_ptr<T> instance(Args &&... args) {
     if (instance_.get() == nullptr)
       instance_.reset(new T(std::forward<Args>(args)...));
@@ -33,8 +31,8 @@ private:
   static std::shared_ptr<T> instance_;
 };
 
-template<class T> std::shared_ptr<T> Singleton<T>::instance_ = nullptr;
+template <class T> std::shared_ptr<T> Singleton<T>::instance_ = nullptr;
 
-} //namespace drcomclient
+} // namespace DrcomClient
 
-#endif //JLU_DRCOM_SINGLETON_H
+#endif // JLU_DRCOM_SINGLETON_H

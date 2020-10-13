@@ -9,11 +9,13 @@
 #include "ui/about_dialog.h"
 #include "ui/preferences_dialog.h"
 
-namespace drcomclient {
+namespace DrcomClient {
 
-Application::Application()
-    : Gtk::Application("com.sea.drcomclient") {
+Glib::RefPtr<Application> Application::create() {
+  return Glib::RefPtr<Application>(new Application());
 }
+
+Application::Application() : Gtk::Application("com.sea.drcomclient") {}
 
 void Application::on_preferences_menu_acted() {
   PreferencesDialog *dialog;
@@ -24,13 +26,7 @@ void Application::on_preferences_menu_acted() {
   dialog->show();
 }
 
-void Application::on_quit_menu_acted() {
-  for (auto &it:get_windows()) {
-    it->hide();
-  }
-  quit();
-  exit(0);
-}
+void Application::on_quit_menu_acted() { quit(); }
 
 void Application::on_about_menu_acted() {
   AboutDialog *dialog;
@@ -43,9 +39,9 @@ void Application::on_about_menu_acted() {
 
 void Application::on_startup() {
   Gtk::Application::on_startup();
-  add_action("preferences", [&] { on_preferences_menu_acted(); });
-  add_action("about", [&] { on_about_menu_acted(); });
-  add_action("quit", [&] { on_quit_menu_acted(); });
+  add_action("preferences", [this] { on_preferences_menu_acted(); });
+  add_action("about", [this] { on_about_menu_acted(); });
+  add_action("quit", [this] { on_quit_menu_acted(); });
   auto builder = Gtk::Builder::create();
   builder->add_from_resource("/com/sea/drcomclient/app_menu.glade");
   auto object = builder->get_object("app_menu");
@@ -64,5 +60,4 @@ void Application::on_activate() {
   window->show();
 }
 
-
-} //namespace drcomclient
+} // namespace DrcomClient

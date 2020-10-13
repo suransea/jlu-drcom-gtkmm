@@ -5,16 +5,15 @@
 #ifndef JLU_DRCOM_MAIN_WINDOW_H
 #define JLU_DRCOM_MAIN_WINDOW_H
 
-
-#include <gtkmm/window.h>
 #include <gtkmm/builder.h>
 #include <gtkmm/button.h>
-#include <gtkmm/entry.h>
 #include <gtkmm/checkbutton.h>
+#include <gtkmm/entry.h>
+#include <gtkmm/window.h>
 
 #include "../network/drcom.h"
 
-namespace drcomclient {
+namespace DrcomClient {
 
 class MainWindow : public Gtk::Window {
 public:
@@ -33,7 +32,7 @@ protected:
 
   void init_signal();
 
-  //Signal handlers:
+  // Signal handlers:
   void on_login_button_clicked();
 
   void on_login_done(bool success, const std::string &msg);
@@ -42,7 +41,7 @@ protected:
 
   void on_alive_abort(bool, const std::string &msg);
 
-  //Member widgets:
+  // Member widgets:
   Gtk::Button *login_button_ = nullptr;
   Gtk::Entry *user_entry_ = nullptr;
   Gtk::Entry *passwd_entry_ = nullptr;
@@ -52,6 +51,6 @@ protected:
   Drcom drcom_;
 };
 
-} //namespace drcomclient
+} // namespace DrcomClient
 
-#endif //JLU_DRCOM_MAIN_WINDOW_H
+#endif // JLU_DRCOM_MAIN_WINDOW_H

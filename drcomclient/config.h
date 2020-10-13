@@ -7,12 +7,12 @@
 
 #include <string>
 
-namespace drcomclient {
-
-const unsigned short PORT = 61440;
+namespace DrcomClient {
 
 class Config {
 public:
+  constexpr static unsigned short port = 61440;
+
   Config();
 
   Config(const Config &) = delete;
@@ -54,11 +54,11 @@ private:
   std::string password_;
   std::string server_ip_;
   std::string mac_address_;
-  bool auto_min_;
-  bool remember_me_;
-  bool auto_login_;
+  bool auto_min_{false};
+  bool remember_me_{false};
+  bool auto_login_{false};
 };
 
-} //namespace drcomclient
+} // namespace DrcomClient
 
-#endif //JLU_DRCOM_CONFIG_H
+#endif // JLU_DRCOM_CONFIG_H

@@ -4,10 +4,10 @@
 
 #include "about_dialog.h"
 
-namespace drcomclient {
+namespace DrcomClient {
 
-AboutDialog::AboutDialog(BaseObjectType *object, const Glib::RefPtr<Gtk::Builder> &builder)
-    : Gtk::Dialog(object) {
-}
+AboutDialog::AboutDialog(BaseObjectType *object,
+                         const Glib::RefPtr<Gtk::Builder> &builder)
+    : Gtk::Dialog(object) {}
 
-} //namespace drcomclient
+} // namespace DrcomClient

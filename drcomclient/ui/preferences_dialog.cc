@@ -6,14 +6,14 @@
 
 #include <giomm.h>
 
-#include "singleton.h"
 #include "../network/mac_address.h"
-#include "../util/config.h"
+#include "drcomclient/config.h"
+#include "singleton.h"
 
-namespace drcomclient {
+namespace DrcomClient {
 
-
-PreferencesDialog::PreferencesDialog(BaseObjectType *object, const Glib::RefPtr<Gtk::Builder> &builder)
+PreferencesDialog::PreferencesDialog(BaseObjectType *object,
+                                     const Glib::RefPtr<Gtk::Builder> &builder)
     : Gtk::Dialog(object) {
   builder->get_widget("auto_min_button", auto_min_button_);
   builder->get_widget("server_ip_entry", server_ip_entry_);
@@ -33,8 +33,8 @@ PreferencesDialog::~PreferencesDialog() {
 }
 
 void PreferencesDialog::init_signal() {
-  save_button_->signal_clicked().connect([&] { on_save_button_clicked(); });
-  cancel_button_->signal_clicked().connect([&] { on_cancel_button_clicked(); });
+  save_button_->signal_clicked().connect([this] { on_save_button_clicked(); });
+  cancel_button_->signal_clicked().connect([this] { on_cancel_button_clicked(); });
 }
 
 void PreferencesDialog::init_control() {
@@ -42,9 +42,10 @@ void PreferencesDialog::init_control() {
   auto_min_button_->set_active(config->auto_min());
   server_ip_entry_->set_text(config->server_ip());
   mac_box_->append(config->mac_address());
-  auto &&macs = MacAddress::get_macs();
+  auto &&macs = MacAddress::all();
   for (auto &mac : macs) {
-    if (mac.to_string() == config->mac_address())continue;
+    if (mac.to_string() == config->mac_address())
+      continue;
     mac_box_->append(mac.to_string());
   }
   mac_box_->set_active(0);
@@ -59,9 +60,6 @@ void PreferencesDialog::on_save_button_clicked() {
   close();
 }
 
-void PreferencesDialog::on_cancel_button_clicked() {
-  close();
-}
+void PreferencesDialog::on_cancel_button_clicked() { close(); }
 
-
-} //namespace drcomclient
+} // namespace DrcomClient

@@ -5,24 +5,26 @@
 #ifndef JLU_DRCOM_MAC_ADDRESS_H
 #define JLU_DRCOM_MAC_ADDRESS_H
 
+#include <array>
+#include <string>
 #include <vector>
 
-#include "../util/bytes.h"
+typedef unsigned char byte;
 
-namespace drcomclient {
+namespace DrcomClient {
 
 class MacAddress {
 public:
-  static std::vector<MacAddress> get_macs();
+  static std::vector<MacAddress> all();
 
-  MacAddress(const char *device_name, const char *mac);
+  MacAddress(const char *device_name, const std::array<byte, 6> &mac);
 
-  //from format: "<mac_str>@<device-name>"
+  // from format: "<mac_str>@<device-name>"
   explicit MacAddress(const std::string &str);
 
-  MacAddress(const MacAddress &);
+  MacAddress(const MacAddress &) = default;
 
-  const byte *mac() const;
+  const std::array<byte, 6> &mac() const;
 
   const std::string &device_name() const;
 
@@ -30,12 +32,14 @@ public:
 
   std::string to_string();
 
+  byte operator[](std::size_t n) const;
+
 protected:
-  byte mac_[6];
+  std::array<byte, 6> mac_;
   std::string device_name_;
   std::string mac_str_;
 };
 
-} //namespace drcomclient
+} // namespace DrcomClient
 
-#endif //JLU_DRCOM_MAC_ADDRESS_H
+#endif // JLU_DRCOM_MAC_ADDRESS_H
