@@ -22,9 +22,10 @@ namespace {
 
 int challenge_times = -1;
 
-void emit_signal_safely(const DrcomSignal &signal, bool b,
-                        const std::string &s) {
-  Glib::signal_idle().connect_once([=] { signal.emit(b, s); });
+void emit_signal_safely(const DrcomSignal &signal, bool success,
+                        const std::string &msg) {
+  Glib::signal_idle().connect_once(
+      [&signal, success, msg] { signal.emit(success, msg); });
 }
 
 template <typename Data>
